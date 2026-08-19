@@ -29,13 +29,20 @@ spec:
   workspaces:
     - name: source
   steps:
-    - name: dependency-build
+    - name: dependencies
       image: $(params.helmImage)
       workingDir: $(workspaces.source.path)
       script: |
         #!/usr/bin/env sh
         set -eu
-        helm dependency build "$(params.chartPath)"
+        # A committed Chart.lock pins the exact library chart digest, so prefer it. Repositories
+        # that do not have one yet still work, they just resolve the version afresh.
+        if [ -f "$(params.chartPath)/Chart.lock" ]; then
+          helm dependency build "$(params.chartPath)"
+        else
+          echo "no Chart.lock in $(params.chartPath); resolving dependencies without a pin"
+          helm dependency update "$(params.chartPath)"
+        fi
 
     - name: lint
       image: $(params.helmImage)
