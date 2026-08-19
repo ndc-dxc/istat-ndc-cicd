@@ -12,12 +12,11 @@ spec:
   pipelineRef:
     name: deploy-service
   taskRunTemplate:
+    # No podTemplate here on purpose. Setting a securityContext.fsGroup would also be inherited
+    # by Tekton's affinity-assistant StatefulSet, which runs as the `default` ServiceAccount and
+    # is admitted by no SCC that allows that group — the run then hangs Pending forever. The
+    # shared workspace is made writable by the pipelines-scc RoleBinding in bootstrap/ instead.
     serviceAccountName: deployer
-    podTemplate:
-      # See tekton/README.md: Tekton pods get no fsGroup from the nonroot SCC, so a shared
-      # workspace PVC is not writable without this.
-      securityContext:
-        fsGroup: 65532
   params:
     - name: service
       value: sample-service
