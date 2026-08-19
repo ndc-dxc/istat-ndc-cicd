@@ -7,7 +7,7 @@ infrastructure bootstrap and the Tekton pipelines, both kept as code.
 |---|---|---|
 | `bootstrap/` | Namespaces, quotas, deployer ServiceAccount, RBAC, pipeline workspace — the bundle INFRA/OPS applies once | ready to review |
 | `tekton/` | Pipeline, Tasks, Triggers and PipelineRun templates — see [tekton/README.md](tekton/README.md) | ready to review |
-| `scripts/` | `validate.sh` (schema check + server-side dry run), `simulate-webhook.sh` | |
+| `scripts/` | `verify-target.sh` (run this first on a new cluster), `validate.sh`, `simulate-webhook.sh` | |
 
 Naming note: the `istat-ndc` root is a placeholder, chosen to make explicit that these
 resources do not reuse the legacy `ndc-*` namespaces. It is meant to be finalised together
@@ -44,6 +44,18 @@ oc auth can-i get    nodes                         --as=$SA   # no
 
 The last two commands are the point of the design: the deploy identity is scoped to the
 environments it owns, and holds nothing at cluster level.
+
+## Before the first deploy on a new cluster
+
+```sh
+oc login … && ./scripts/verify-target.sh
+```
+
+Read-only. It reports where the cluster differs from what these manifests were tested against:
+OpenShift and Pipelines versions, whether the tasks and ClusterRoles the pipeline relies on
+exist, storage classes, namespaces missing a LimitRange next to their quota, and whether the
+cluster can actually pull from the registry. Each difference has a documented variant in the
+proposal; the point is to choose the variant before the first deploy rather than during it.
 
 ## Validating changes
 
