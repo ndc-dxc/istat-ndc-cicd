@@ -1,0 +1,103 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: deploy-service
+  labels:
+    app.kubernetes.io/part-of: istat-ndc-platform
+spec:
+  description: >-
+    Deploys an already-built image to dev or test. The environment is a parameter, not a
+    branch: the same pipeline definition serves every environment, and promoting means running
+    it again with a different `env` and the same `imageTag`.
+  params:
+    - name: service
+      description: Service name; also the Helm release name.
+    - name: gitUrl
+      description: Repository holding the service and its deploy/ directory.
+    - name: gitRevision
+      default: main
+    - name: env
+      description: dev or test.
+      default: dev
+    - name: imageTag
+      description: Immutable tag of the image built by CI, normally the commit SHA.
+    - name: chartPath
+      default: deploy
+    - name: smokePath
+      default: /health
+  workspaces:
+    - name: source
+      description: Shared workspace; the clone lands here and the later tasks read it.
+  results:
+    - name: namespace
+      value: $(tasks.deploy.results.namespace)
+    - name: revision
+      value: $(tasks.deploy.results.revision)
+  tasks:
+    - name: fetch-source
+      taskRef:
+        # Provided by OpenShift Pipelines in the openshift-pipelines namespace, so no task is
+        # pulled from the internet at run time. See tekton/README.md if the cluster resolver is
+        # unavailable.
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: namespace
+            value: openshift-pipelines
+      params:
+        - name: URL
+          value: $(params.gitUrl)
+        - name: REVISION
+          value: $(params.gitRevision)
+        - name: DELETE_EXISTING
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: source
+
+    - name: validate
+      runAfter: [fetch-source]
+      taskRef:
+        name: helm-validate
+      params:
+        - name: chartPath
+          value: $(params.chartPath)
+        - name: env
+          value: $(params.env)
+        - name: imageTag
+          value: $(params.imageTag)
+      workspaces:
+        - name: source
+          workspace: source
+
+    - name: deploy
+      runAfter: [validate]
+      taskRef:
+        name: helm-deploy
+      params:
+        - name: release
+          value: $(params.service)
+        - name: env
+          value: $(params.env)
+        - name: chartPath
+          value: $(params.chartPath)
+        - name: imageTag
+          value: $(params.imageTag)
+      workspaces:
+        - name: source
+          workspace: source
+
+    - name: smoke
+      runAfter: [deploy]
+      taskRef:
+        name: smoke-test
+      params:
+        - name: service
+          value: $(params.service)
+        - name: namespace
+          value: $(tasks.deploy.results.namespace)
+        - name: path
+          value: $(params.smokePath)

@@ -1,0 +1,82 @@
+# Entry point for deploy requests coming from GitHub Actions.
+#
+# The listener is not an open door: the GitHub interceptor rejects anything not signed with the
+# shared secret, and the CEL interceptor then checks that the repository is one of ours and
+# that the requested environment is one this pipeline is allowed to touch.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-triggers
+  namespace: istat-ndc-cicd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-triggers
+  namespace: istat-ndc-cicd
+rules:
+  - apiGroups: [triggers.tekton.dev]
+    resources: [eventlisteners, triggerbindings, triggertemplates, triggers, interceptors]
+    verbs: [get, list, watch]
+  - apiGroups: [tekton.dev]
+    resources: [pipelineruns]
+    verbs: [create, get, list, watch]
+  - apiGroups: [""]
+    resources: [configmaps, secrets, serviceaccounts]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-triggers
+  namespace: istat-ndc-cicd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-triggers
+subjects:
+  - kind: ServiceAccount
+    name: tekton-triggers
+    namespace: istat-ndc-cicd
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: github-listener
+  namespace: istat-ndc-cicd
+spec:
+  serviceAccountName: tekton-triggers
+  triggers:
+    - triggerRef: deploy-request
+  resources:
+    kubernetesResource:
+      spec:
+        template:
+          spec:
+            serviceAccountName: tekton-triggers
+            containers:
+              - resources:
+                  requests: { cpu: 50m, memory: 128Mi }
+                  limits:   { cpu: 200m, memory: 256Mi }
+---
+# Public entry point for the listener. Only needed for the webhook variant; the
+# GitHub-Actions-calls-the-API variant needs no inbound route at all.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: github-listener
+  namespace: istat-ndc-cicd
+spec:
+  to:
+    kind: Service
+    name: el-github-listener
+    weight: 100
+  port:
+    targetPort: http-listener
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

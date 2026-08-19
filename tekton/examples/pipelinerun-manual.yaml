@@ -1,0 +1,32 @@
+# Manual run — the same thing the trigger creates, useful for a first deploy or a promotion.
+#
+#   oc create -f pipelinerun-manual.yaml -n istat-ndc-cicd
+#
+# Promotion to test is this exact file with env: test and the same imageTag.
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: deploy-sample-service-
+  namespace: istat-ndc-cicd
+spec:
+  pipelineRef:
+    name: deploy-service
+  taskRunTemplate:
+    serviceAccountName: deployer
+  params:
+    - name: service
+      value: sample-service
+    - name: gitUrl
+      value: https://github.com/ndc-dxc/istat-ndc-sample-service
+    - name: gitRevision
+      value: main
+    - name: env
+      value: dev
+    - name: imageTag
+      value: replace-with-the-built-sha
+  workspaces:
+    - name: source
+      persistentVolumeClaim:
+        claimName: pipeline-workspace
+  timeouts:
+    pipeline: 20m

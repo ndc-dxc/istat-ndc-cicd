@@ -1,0 +1,73 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: helm-validate
+  labels:
+    app.kubernetes.io/part-of: istat-ndc-platform
+spec:
+  description: >-
+    Validation gate. Resolves chart dependencies, lints, renders the requested environment and
+    schema-checks the result. Runs before anything touches the cluster, so a broken chart fails
+    in seconds instead of half-way through a rollout.
+  params:
+    - name: chartPath
+      description: Chart directory inside the service repository.
+      default: deploy
+    - name: env
+      description: Target environment (dev or test).
+    - name: imageTag
+      description: Immutable image tag produced by the build.
+    - name: helmImage
+      default: docker.io/alpine/helm:3.21.4
+    - name: kubeconformImage
+      default: ghcr.io/yannh/kubeconform:v0.8.0-alpine
+    - name: schemaLocation
+      description: >-
+        Where OpenShift schemas (Route, ImageStream) are fetched from. Point it at an internal
+        mirror if the cluster has no egress to raw.githubusercontent.com.
+      default: https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/openshift/v4.15-strict/{{ .ResourceKind }}_{{ .Group }}_{{ .ResourceAPIVersion }}.json
+  workspaces:
+    - name: source
+  steps:
+    - name: dependency-build
+      image: $(params.helmImage)
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        helm dependency build "$(params.chartPath)"
+
+    - name: lint
+      image: $(params.helmImage)
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        helm lint "$(params.chartPath)" \
+          -f "$(params.chartPath)/values.yaml" \
+          -f "$(params.chartPath)/values-$(params.env).yaml" \
+          --set image.tag="$(params.imageTag)"
+
+    - name: render
+      image: $(params.helmImage)
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        helm template "$(params.chartPath)" \
+          -f "$(params.chartPath)/values.yaml" \
+          -f "$(params.chartPath)/values-$(params.env).yaml" \
+          --set image.tag="$(params.imageTag)" > rendered.yaml
+        echo "rendered $(grep -c '^kind:' rendered.yaml) resources"
+
+    - name: schema-check
+      image: $(params.kubeconformImage)
+      workingDir: $(workspaces.source.path)
+      args:
+        - -strict
+        - -summary
+        - -schema-location
+        - default
+        - -schema-location
+        - $(params.schemaLocation)
+        - rendered.yaml

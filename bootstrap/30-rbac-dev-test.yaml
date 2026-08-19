@@ -1,0 +1,62 @@
+# Rights of the deployer SA on dev and test.
+# `edit` is the pragmatic starting point for the pilot; it can be replaced by the
+# custom Role below once the set of resources the charts touch is final.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-edit
+  namespace: istat-ndc-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  - kind: ServiceAccount
+    name: deployer
+    namespace: istat-ndc-cicd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-edit
+  namespace: istat-ndc-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  - kind: ServiceAccount
+    name: deployer
+    namespace: istat-ndc-cicd
+---
+# Minimal rights inside the control namespace itself: read its own config and
+# follow the logs of the pods Tekton creates.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pipeline-runtime
+  namespace: istat-ndc-cicd
+rules:
+  - apiGroups: [""]
+    resources: [configmaps, secrets]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list, watch]
+  - apiGroups: [tekton.dev]
+    resources: [pipelineruns, taskruns]
+    verbs: [get, list, watch, create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-pipeline-runtime
+  namespace: istat-ndc-cicd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pipeline-runtime
+subjects:
+  - kind: ServiceAccount
+    name: deployer
+    namespace: istat-ndc-cicd

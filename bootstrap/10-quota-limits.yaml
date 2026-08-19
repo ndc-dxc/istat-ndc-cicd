@@ -1,0 +1,76 @@
+# Starting values, to be agreed with INFRA/OPS. They exist so that a runaway
+# pipeline cannot exhaust cluster capacity, not to be tight from day one.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: env-quota
+  namespace: istat-ndc-dev
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "5"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: env-limits
+  namespace: istat-ndc-dev
+spec:
+  limits:
+    - type: Container
+      default:        { cpu: 500m, memory: 512Mi }
+      defaultRequest: { cpu: 100m, memory: 256Mi }
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: env-quota
+  namespace: istat-ndc-test
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "5"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: env-limits
+  namespace: istat-ndc-test
+spec:
+  limits:
+    - type: Container
+      default:        { cpu: 500m, memory: 512Mi }
+      defaultRequest: { cpu: 100m, memory: 256Mi }
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: cicd-quota
+  namespace: istat-ndc-cicd
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "3"
+---
+# Required, not cosmetic: with a ResourceQuota in place every container must declare requests
+# and limits, and Tekton's own init containers (place-scripts, prepare, working-dir-initializer)
+# do not. Without these defaults every PipelineRun fails with "failed quota".
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cicd-limits
+  namespace: istat-ndc-cicd
+spec:
+  limits:
+    - type: Container
+      default:        { cpu: 500m, memory: 1Gi }
+      defaultRequest: { cpu: 100m, memory: 256Mi }

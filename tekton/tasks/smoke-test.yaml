@@ -1,0 +1,39 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: smoke-test
+  labels:
+    app.kubernetes.io/part-of: istat-ndc-platform
+spec:
+  description: >-
+    Final gate. Calls the service through its in-cluster Service address, so the check does not
+    depend on Route hostnames or on anything outside the cluster.
+  params:
+    - name: service
+    - name: namespace
+    - name: port
+      default: "8080"
+    - name: path
+      default: /health
+    - name: retries
+      default: "10"
+    - name: image
+      default: registry.access.redhat.com/ubi9/ubi-minimal:latest
+  steps:
+    - name: curl
+      image: $(params.image)
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        URL="http://$(params.service).$(params.namespace).svc:$(params.port)$(params.path)"
+        for i in $(seq 1 $(params.retries)); do
+          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$URL" || true)"
+          if [ "$code" = "200" ]; then
+            echo "smoke test passed: $URL -> 200"
+            exit 0
+          fi
+          echo "attempt $i/$(params.retries): $URL -> ${code:-no response}"
+          sleep 3
+        done
+        echo "smoke test failed: $URL never returned 200" >&2
+        exit 1

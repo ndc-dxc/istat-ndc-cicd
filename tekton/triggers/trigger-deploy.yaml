@@ -1,0 +1,96 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: Trigger
+metadata:
+  name: deploy-request
+  namespace: istat-ndc-cicd
+spec:
+  interceptors:
+    # 1. Authenticity: HMAC signature over the body, shared secret held in the cluster.
+    - ref:
+        name: github
+      params:
+        - name: secretRef
+          value:
+            secretName: github-webhook-secret
+            secretKey: secretToken
+        - name: eventTypes
+          value: [repository_dispatch]
+
+    # 2. Authorisation and shape: only our repositories, only deployable environments, and no
+    #    free-form strings that could travel further down the pipeline.
+    - ref:
+        name: cel
+      params:
+        - name: filter
+          value: >-
+            body.client_payload.gitUrl.startsWith('https://github.com/ndc-dxc/') &&
+            body.client_payload.env in ['dev', 'test'] &&
+            body.client_payload.service.matches('^[a-z0-9][a-z0-9-]{1,40}$') &&
+            body.client_payload.imageTag.matches('^[a-zA-Z0-9._-]{1,64}$')
+  bindings:
+    - ref: deploy-request
+  template:
+    ref: deploy-service
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: deploy-request
+  namespace: istat-ndc-cicd
+spec:
+  params:
+    - name: service
+      value: $(body.client_payload.service)
+    - name: gitUrl
+      value: $(body.client_payload.gitUrl)
+    - name: gitRevision
+      value: $(body.client_payload.gitRevision)
+    - name: env
+      value: $(body.client_payload.env)
+    - name: imageTag
+      value: $(body.client_payload.imageTag)
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: deploy-service
+  namespace: istat-ndc-cicd
+spec:
+  params:
+    - name: service
+    - name: gitUrl
+    - name: gitRevision
+      default: main
+    - name: env
+      default: dev
+    - name: imageTag
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: deploy-$(tt.params.service)-$(tt.params.env)-
+        labels:
+          istat.it/service: $(tt.params.service)
+          istat.it/environment: $(tt.params.env)
+      spec:
+        pipelineRef:
+          name: deploy-service
+        taskRunTemplate:
+          serviceAccountName: deployer
+        params:
+          - name: service
+            value: $(tt.params.service)
+          - name: gitUrl
+            value: $(tt.params.gitUrl)
+          - name: gitRevision
+            value: $(tt.params.gitRevision)
+          - name: env
+            value: $(tt.params.env)
+          - name: imageTag
+            value: $(tt.params.imageTag)
+        workspaces:
+          - name: source
+            persistentVolumeClaim:
+              claimName: pipeline-workspace
+        timeouts:
+          pipeline: 20m

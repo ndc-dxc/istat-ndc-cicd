@@ -1,0 +1,13 @@
+# Shared workspace for PipelineRuns (git clone, helm cache).
+# storageClassName is left unset on purpose: the cluster default is used, so the
+# same bundle applies unchanged on CRC and on ARO.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-workspace
+  namespace: istat-ndc-cicd
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi

@@ -1,0 +1,27 @@
+# The EventListener watches two cluster-scoped resources — ClusterInterceptors (the github and
+# cel interceptors live there) and ClusterTriggerBindings — so its ServiceAccount needs a
+# cluster-scoped read. Without it the listener pod crash-loops on "failed to start informers".
+#
+# The ClusterRole itself is created by the OpenShift Pipelines operator; only the binding is
+# ours. It is the single cluster-scoped grant the whole setup requires, and it is read-only.
+#
+# Needed only for the inbound-webhook variant: if deploys are started by GitHub Actions calling
+# the cluster API, no EventListener runs and this file can be skipped.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-triggers
+  namespace: istat-ndc-cicd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: istat-ndc-tekton-triggers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-eventlistener-clusterroles
+subjects:
+  - kind: ServiceAccount
+    name: tekton-triggers
+    namespace: istat-ndc-cicd

@@ -1,0 +1,36 @@
+# Four namespaces: one control plane for the pipelines, three environments.
+# Names use the `istat-ndc` placeholder root agreed as "not the legacy ndc-*".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istat-ndc-cicd
+  annotations:
+    openshift.io/display-name: "NDC platform — CI/CD control namespace"
+    openshift.io/description: "Tekton pipelines, triggers and the deployer ServiceAccount. No application workloads."
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istat-ndc-dev
+  annotations:
+    openshift.io/display-name: "NDC platform — dev"
+  labels:
+    istat.it/environment: dev
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istat-ndc-test
+  annotations:
+    openshift.io/display-name: "NDC platform — test"
+  labels:
+    istat.it/environment: test
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istat-ndc-prod
+  annotations:
+    openshift.io/display-name: "NDC platform — prod"
+  labels:
+    istat.it/environment: prod

@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: istat-ndc-cicd
+resources:
+  - tasks/helm-validate.yaml
+  - tasks/helm-deploy.yaml
+  - tasks/smoke-test.yaml
+  - pipelines/deploy-service.yaml
+  - triggers/eventlistener.yaml
+  - triggers/trigger-deploy.yaml
