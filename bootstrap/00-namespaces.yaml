@@ -1,4 +1,9 @@
-# Four namespaces: one control plane for the pipelines, three environments.
+# Three namespaces: one control plane for the pipelines, two environments.
+#
+# There is no production namespace here on purpose. Production runs on a *separate cluster*,
+# where this bundle is never applied: see docs/cross-cluster.md. Creating an `istat-ndc-prod`
+# namespace next to dev and test would describe a topology that does not exist.
+#
 # Names use the `istat-ndc` placeholder root agreed as "not the legacy ndc-*".
 apiVersion: v1
 kind: Namespace
@@ -25,12 +30,3 @@ metadata:
     openshift.io/display-name: "NDC platform — test"
   labels:
     istat.it/environment: test
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: istat-ndc-prod
-  annotations:
-    openshift.io/display-name: "NDC platform — prod"
-  labels:
-    istat.it/environment: prod

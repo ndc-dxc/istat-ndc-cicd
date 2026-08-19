@@ -1,6 +1,7 @@
 # Bootstrap bundle — the one-shot apply requested from INFRA/OPS.
 #   oc apply -k .
-# Production RBAC is deliberately NOT part of this bundle: see 31-rbac-prod.yaml.
+# This bundle targets the dev/test cluster only. Production lives on a separate cluster and
+# is not addressed from here at all: see docs/cross-cluster.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

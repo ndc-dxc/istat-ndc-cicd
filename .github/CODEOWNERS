@@ -1,0 +1,23 @@
+# Code owners.
+#
+# On the cluster, the boundary around production is RBAC: the `deployer` ServiceAccount has no
+# rights there, and no path to that cluster at all. But production is *described* here, in files
+# that the ISTAT DevOps team applies in good faith — and RBAC cannot see a pull request.
+#
+# So the separation of duties has to exist on both halves of the path. Below, the files that
+# describe or reach production require a review from the team that operates it.
+#
+# Enforced only when branch protection has "Require review from Code Owners" enabled:
+# see istat-ndc-cicd/docs/repo-governance.md.
+#
+# @istat/ndc-devops is a PLACEHOLDER, like the `istat-ndc-*` namespace root: the real team
+# handle is to be agreed with ISTAT. Until it exists, GitHub ignores unknown owners silently,
+# which is exactly why it must be one of the first things settled on day one.
+
+*                               @ndc-dxc
+
+# Applied to the cluster by INFRA/OPS: namespaces, quotas, RBAC, the deploy identity.
+/bootstrap/                     @ndc-dxc @istat/ndc-devops
+
+# The deploy identity's behaviour, including the guard that keeps the pipeline out of prod.
+/tekton/tasks/helm-deploy.yaml  @ndc-dxc @istat/ndc-devops
