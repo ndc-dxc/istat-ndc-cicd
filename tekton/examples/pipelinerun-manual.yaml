@@ -13,6 +13,11 @@ spec:
     name: deploy-service
   taskRunTemplate:
     serviceAccountName: deployer
+    podTemplate:
+      # See tekton/README.md: Tekton pods get no fsGroup from the nonroot SCC, so a shared
+      # workspace PVC is not writable without this.
+      securityContext:
+        fsGroup: 65532
   params:
     - name: service
       value: sample-service

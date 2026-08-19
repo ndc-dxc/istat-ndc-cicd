@@ -1,0 +1,22 @@
+# Pipeline pods need the SCC that OpenShift Pipelines ships for its own workloads.
+#
+# The tasks the operator provides (git-clone among them) pin a fixed UID, which `restricted-v2`
+# refuses because it is outside the namespace range, and the fallback `nonroot` SCC applies no
+# fsGroup, leaving the shared workspace PVC unwritable. `pipelines-scc` is what the operator
+# grants to its own default `pipeline` ServiceAccount, and it resolves both.
+#
+# The grant is deliberately confined to the CI/CD namespace: application pods in
+# istat-ndc-{dev,test,prod} keep running under restricted-v2 with a namespace-assigned UID.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-pipelines-scc
+  namespace: istat-ndc-cicd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pipelines-scc-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: deployer
+    namespace: istat-ndc-cicd

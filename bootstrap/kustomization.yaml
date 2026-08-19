@@ -10,6 +10,7 @@ resources:
   - 30-rbac-dev-test.yaml
   - 40-workspace-pvc.yaml
   - 50-triggers-rbac.yaml
+  - 60-pipelines-scc.yaml
 labels:
   - includeSelectors: false
     pairs:
